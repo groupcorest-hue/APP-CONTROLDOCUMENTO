@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B0B0D">
+  <meta name="description" content="Control de carnés de sanidad y documentos del personal · Sanguchería El Chinito">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Docs Chinito">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <title>Control Documentario · El Chinito</title>
+  <style>
+    html,body{margin:0;height:100%;background:#0B0B0D;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#F3F3F5}
+    #app{position:fixed;inset:0;width:100%;height:100%;border:0;background:#0B0B0D}
+    #splash{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;
+      background:radial-gradient(circle at 50% 40%,rgba(255,199,44,.16),transparent 55%),#0B0B0D;transition:opacity .5s,visibility .5s}
+    #splash.fuera{opacity:0;visibility:hidden}
+    #splash img{width:min(62vw,260px);filter:drop-shadow(0 14px 22px rgba(0,0,0,.8)) drop-shadow(0 0 26px rgba(255,199,44,.3));animation:flota 3s ease-in-out infinite}
+    @keyframes flota{50%{transform:translateY(-10px)}}
+    .t{font-weight:800;letter-spacing:.3em;font-size:12px;color:#FFC72C}
+    .barra{width:180px;height:4px;border-radius:4px;background:#1d1e24;overflow:hidden;position:relative}
+    .barra::before{content:'';position:absolute;inset:0;width:40%;background:linear-gradient(90deg,transparent,#FFC72C,transparent);animation:carga 1.1s linear infinite}
+    @keyframes carga{from{transform:translateX(-100%)}to{transform:translateX(260%)}}
+    #msg{font-size:14px;color:#9A9BA6;text-align:center;padding:0 24px;max-width:340px;line-height:1.5}
+    button{display:none;border:0;border-radius:12px;padding:13px 26px;font-weight:800;letter-spacing:.06em;cursor:pointer;color:#111;
+      background:linear-gradient(180deg,#FFD95A,#FFC72C 60%,#E0A800);box-shadow:0 5px 0 #9C7400,0 10px 22px rgba(0,0,0,.45)}
+    button:active{transform:translateY(4px);box-shadow:0 1px 0 #9C7400}
+    #splash.error button{display:block}
+    #splash.error .barra{display:none}
+    #permiso{position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:20;display:none;gap:12px;align-items:center;
+      padding:16px;border-radius:20px;background:linear-gradient(150deg,#26221a,#121214);border:1px solid #FFC72C;
+      box-shadow:0 20px 50px rgba(0,0,0,.75),0 0 30px rgba(255,199,44,.25);animation:sube .45s cubic-bezier(.2,.8,.2,1) both}
+    #permiso.ver{display:flex;flex-wrap:wrap}
+    @keyframes sube{from{transform:translateY(130%)}}
+    #permiso .ic{font-size:30px;animation:campana 1.4s ease infinite}
+    @keyframes campana{0%,60%,100%{transform:rotate(0)}10%{transform:rotate(18deg)}25%{transform:rotate(-16deg)}40%{transform:rotate(10deg)}}
+    #permiso .tx{flex:1;min-width:200px;font-size:14px;line-height:1.4}
+    #permiso .tx b{color:#FFC72C;display:block;font-size:15px;margin-bottom:2px}
+    #permiso .bt{display:flex;gap:8px;width:100%;justify-content:flex-end}
+    #permiso button{display:block;padding:11px 18px;font-size:13px}
+    #permiso button.no{background:#24252d;color:#ccc;box-shadow:0 4px 0 #050506}
+  </style>
+  <script src="config.js"></script>
+</head>
+<body>
+  <div id="splash">
+    <img src="icons/logo.png" alt="El Chinito">
+    <div class="t">CONTROL DOCUMENTARIO</div>
+    <div class="barra"></div>
+    <div id="msg">Conectando…</div>
+    <button onclick="location.reload()">REINTENTAR</button>
+  </div>
+  <iframe id="app" title="Control Documentario" allow="clipboard-write; fullscreen; autoplay"></iframe>
+  <div id="permiso">
+    <div class="ic">🔔</div>
+    <div class="tx"><b>Alertas en este teléfono</b><span id="permTx">Reciba un aviso cuando un carné esté por vencer o venza, aunque la app esté cerrada.</span></div>
+    <div class="bt"><button class="no" onclick="cerrarPermiso(true)">Ahora no</button><button id="permOk" onclick="activarPush()">ACTIVAR</button></div>
+  </div>
+
+  <script>
+    const CFG = self.CONFIG || {};
+    const APP_URL = CFG.APP_URL || '';
+
+    const splash = document.getElementById('splash'), msg = document.getElementById('msg'), frame = document.getElementById('app');
+    const esGoogle = o => { try { return /\.googleusercontent\.com$/.test(new URL(o).hostname); } catch (e) { return false; } };
+    let listo = false;
+
+    function ocultarSplash() { listo = true; splash.classList.add('fuera'); }
+    function error(t) { splash.classList.remove('fuera'); splash.classList.add('error'); msg.textContent = t; }
+
+    if (!APP_URL || APP_URL.indexOf('PEGUE_AQUI') >= 0) {
+      error('Falta configurar la URL del sistema en config.js (APP_URL).');
+    } else if (!navigator.onLine) {
+      error('Sin conexión a internet. Conéctese y vuelva a intentar.');
+    } else {
+      frame.src = APP_URL;
+      frame.addEventListener('load', () => setTimeout(() => { if (!listo) ocultarSplash(); }, 6000));
+      setTimeout(() => { if (!listo) msg.textContent = 'La conexión está lenta, un momento…'; }, 9000);
+    }
+
+    /* ---------------- Notificaciones ---------------- */
+    const esIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const instalada = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    const soporta = 'Notification' in window && 'serviceWorker' in navigator;
+    const firebaseListo = !!(CFG.FIREBASE && CFG.VAPID_KEY);
+    let app = null, appOrigen = null, sesion = false, fcmToken = null, messaging = null;
+
+    const infoPush = () => ({ soporta, permiso: soporta ? Notification.permission : 'no', ios: esIOS, standalone: instalada, firebase: firebaseListo });
+    const enviar = m => { if (app && appOrigen) try { app.postMessage(m, appOrigen); } catch (e) {} };
+    function plataforma() {
+      const u = navigator.userAgent;
+      const so = /android/i.test(u) ? 'Android' : esIOS ? 'iPhone/iPad' : /windows/i.test(u) ? 'Windows' : /mac/i.test(u) ? 'Mac' : 'Otro';
+      return so + (instalada ? ' · app' : ' · navegador');
+    }
+    function cargarScript(src) { return new Promise((ok, ko) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = ko; document.head.appendChild(s); }); }
+
+    async function obtenerToken() {
+      if (!firebaseListo || Notification.permission !== 'granted') return null;
+      if (!messaging) {
+        await cargarScript('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
+        await cargarScript('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
+        firebase.initializeApp(CFG.FIREBASE);
+        messaging = firebase.messaging();
+        // Con la app abierta: mostrar igual la notificación del sistema y avisar al sistema
+        messaging.onMessage(p => {
+          const n = p.notification || {}, d = p.data || {};
+          mostrarNotificacion(n.title || d.titulo || 'Control Documentario', n.body || d.cuerpo || '', d.tag);
+          enviar({ cd: 'push', titulo: n.title || d.titulo, cuerpo: n.body || d.cuerpo });
+        });
+      }
+      const reg = await navigator.serviceWorker.ready;
+      fcmToken = await messaging.getToken({ vapidKey: CFG.VAPID_KEY, serviceWorkerRegistration: reg });
+      return fcmToken;
+    }
+    async function registrar() {
+      enviar({ cd: 'push-estado', push: infoPush() });
+      try {
+        const t = await obtenerToken();
+        if (t && sesion) enviar({ cd: 'push-token', token: t, plataforma: plataforma(), url: location.href.split('#')[0] });
+      } catch (e) { console.warn('Firebase:', e); }
+    }
+    async function mostrarNotificacion(titulo, cuerpo, tag) {
+      if (!soporta || Notification.permission !== 'granted') return;
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        reg.showNotification(titulo, { body: cuerpo, icon: 'icons/icon-192.png', badge: 'icons/favicon-32.png', tag: tag || 'alerta',
+          renotify: true, vibrate: [250, 120, 250, 120, 400], data: { url: location.href } });
+      } catch (e) { try { new Notification(titulo, { body: cuerpo, icon: 'icons/icon-192.png' }); } catch (x) {} }
+    }
+    function pedirPermiso(forzar) {
+      const p = document.getElementById('permiso'), tx = document.getElementById('permTx'), ok = document.getElementById('permOk');
+      if (!soporta) {
+        if (!forzar) return;
+        tx.textContent = esIOS && !instalada ? 'En iPhone primero instale la app: botón Compartir → "Agregar a inicio", y ábrala desde el ícono.'
+                                             : 'Este navegador no permite notificaciones. Use Chrome (Android) o la app instalada.';
+        ok.style.display = 'none'; p.classList.add('ver'); return;
+      }
+      if (Notification.permission === 'denied') {
+        if (!forzar) return;
+        tx.textContent = 'Las notificaciones están bloqueadas. Actívelas en Ajustes del teléfono > Notificaciones > Docs Chinito.';
+        ok.style.display = 'none'; p.classList.add('ver'); return;
+      }
+      if (Notification.permission === 'granted') { registrar(); return; }
+      if (!forzar && localStorage.getItem('cd_perm_no') === new Date().toDateString()) return;
+      ok.style.display = ''; p.classList.add('ver');
+    }
+    function cerrarPermiso(noHoy) {
+      document.getElementById('permiso').classList.remove('ver');
+      if (noHoy) localStorage.setItem('cd_perm_no', new Date().toDateString());
+    }
+    async function activarPush() {
+      cerrarPermiso(false);
+      const r = await Notification.requestPermission();   // debe llamarse desde el toque del usuario
+      enviar({ cd: 'push-estado', push: infoPush() });
+      if (r === 'granted') {
+        mostrarNotificacion('🔔 Alertas activadas', 'Le avisaremos aquí cuando un documento esté por vencer.', 'bienvenida');
+        registrar();
+      }
+    }
+
+    /* ---------------- Puente con el sistema ----------------
+       Guarda la sesión en el almacenamiento propio de la app instalada (sigue abierta al cerrar
+       y volver a abrir, hasta 40 min sin uso) y conecta las notificaciones. */
+    addEventListener('message', e => {
+      if (!esGoogle(e.origin) || !e.data || typeof e.data !== 'object') return;
+      const d = e.data;
+      if (d.cd === 'hola') {
+        app = e.source; appOrigen = e.origin;
+        enviar({ cd: 'token', token: localStorage.getItem('cd_tok') || '', push: infoPush() });
+      }
+      else if (d.cd === 'guardar' && typeof d.token === 'string') localStorage.setItem('cd_tok', d.token);
+      else if (d.cd === 'borrar') localStorage.removeItem('cd_tok');
+      else if (d.cd === 'listo') {
+        app = e.source; appOrigen = e.origin; ocultarSplash();
+        sesion = !!d.sesion;
+        if (sesion) setTimeout(() => pedirPermiso(false), 1500); else cerrarPermiso(false);
+      }
+      else if (d.cd === 'push-activar') pedirPermiso(true);
+      else if (d.cd === 'notificar' && typeof d.titulo === 'string') mostrarNotificacion(d.titulo, String(d.cuerpo || ''), d.tag);
+    });
+
+    addEventListener('offline', () => error('Se perdió la conexión a internet.'));
+    addEventListener('online', () => { if (splash.classList.contains('error')) location.reload(); });
+
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  </script>
+</body>
+</html>
