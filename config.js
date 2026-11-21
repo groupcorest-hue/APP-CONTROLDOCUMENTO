@@ -8,7 +8,7 @@ self.CONFIG = {
 
   // 2) Notificaciones con la app cerrada (Firebase). Déjelo en null si aún no lo configura:
   //    Firebase Console > Configuración del proyecto > General > Tus apps > App web > "firebaseConfig"
-  FIREBASE: null,
+  FIREBASE: true,
  const firebaseConfig = {
   apiKey: "AIzaSyCnkC19VLAfO7CGmaUsjQNcyJpgi1BiWFM",
   authDomain: "docs-chinito.firebaseapp.com",
