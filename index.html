@@ -170,8 +170,11 @@
       const d = e.data;
       if (d.cd === 'hola') {
         app = e.source; appOrigen = e.origin;
-        enviar({ cd: 'token', token: localStorage.getItem('cd_tok') || '', push: infoPush() });
+        let rec = null; try { rec = JSON.parse(localStorage.getItem('cd_rec') || 'null'); } catch (x) {}
+        enviar({ cd: 'token', token: localStorage.getItem('cd_tok') || '', rec, push: infoPush() });
       }
+      else if (d.cd === 'rec-guardar' && d.rec && typeof d.rec.token === 'string') localStorage.setItem('cd_rec', JSON.stringify(d.rec));
+      else if (d.cd === 'rec-borrar') localStorage.removeItem('cd_rec');
       else if (d.cd === 'guardar' && typeof d.token === 'string') localStorage.setItem('cd_tok', d.token);
       else if (d.cd === 'borrar') localStorage.removeItem('cd_tok');
       else if (d.cd === 'listo') {
@@ -190,3 +193,4 @@
   </script>
 </body>
 </html>
+
