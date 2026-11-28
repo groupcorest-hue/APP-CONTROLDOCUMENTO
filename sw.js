@@ -2,7 +2,7 @@
    - Guarda la carcasa de la app para que abra al instante.
    - Recibe las notificaciones push (Firebase) aunque la app esté cerrada.
    Los datos siempre vienen en vivo desde Google Apps Script (no se cachean). */
-const VERSION = 'docs-chinito-v2';
+const VERSION = 'docs-chinito-v3';
 const SHELL = ['./', 'index.html', 'config.js', 'manifest.webmanifest', 'icons/logo.png', 'icons/icon-192.png', 'icons/icon-512.png',
                'icons/maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
 
